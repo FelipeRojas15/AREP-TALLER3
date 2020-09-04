@@ -15,7 +15,9 @@ import java.util.logging.Logger;
  */
 public class HttpServer extends Thread {
     
-    
+    /**
+     * Creation of client and server sockets 
+     */
     public void run() {
         while (true) {
             ServerSocket serverSocket = null;
@@ -27,14 +29,22 @@ public class HttpServer extends Thread {
             }
         }
     }
-
+    /**
+     * Indicates the port through which the Http protocol can be displayed
+     * @return int port
+     */
     public int getPort() {
         if (System.getenv("PORT") != null) {
             return Integer.parseInt(System.getenv("PORT"));
         }
         return 36000;
     }
-
+    /**
+     * Prepares the sockets and directs the response according to the customer's request
+     * @param serverSocket ServerSocket 
+     * @param clientSocket server's socket
+     * @throws IOException 
+     */
     private void socketPrepare(ServerSocket serverSocket, Socket clientSocket) throws IOException {
         try {
             serverSocket = new ServerSocket(getPort());
@@ -53,7 +63,11 @@ public class HttpServer extends Thread {
         clientSocket.close();
         serverSocket.close();
     }
-
+    /**
+     * Create the client's response according to the path and method entered
+     * @param clientSocket server's socket
+     * @throws IOException 
+     */
     private void answerRequest(Socket clientSocket) throws IOException {
         PrintWriter out = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8), true);
         BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
@@ -72,7 +86,12 @@ public class HttpServer extends Thread {
         }
 
     }
-
+    /**
+     * Creates the response and the necessary headers for the server to respond to different requests
+     * @param request request
+     * @param out printstream
+     * @throws IOException 
+     */
     public void createAnswer(Request request, PrintStream out) throws IOException {
 
         if (request.getMethod().equals("GET")) {

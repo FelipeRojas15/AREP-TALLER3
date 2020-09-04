@@ -37,7 +37,7 @@ public class HttpServer {
             System.out.println("Listo para escuchar en el puerto "+getPort()+"...");
             clientSocket = serverSocket.accept();
         } catch (IOException e) {
-            System.err.println("Accept failed.");
+            System.err.println("Accept failed. ");
             System.exit(1);
         }
         answerRequest(clientSocket, serverSocket);

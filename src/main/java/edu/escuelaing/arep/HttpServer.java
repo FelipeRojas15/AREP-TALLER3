@@ -13,9 +13,10 @@ import java.util.logging.Logger;
  * Hello world!
  *
  */
-public class HttpServer {
-
-    public static void main(String[] args) {
+public class HttpServer extends Thread {
+    
+    
+    public void run() {
         while (true) {
             ServerSocket serverSocket = null;
             Socket clientSocket = null;
@@ -27,83 +28,109 @@ public class HttpServer {
         }
     }
 
-    private static void socketPrepare(ServerSocket serverSocket, Socket clientSocket) throws IOException {
-        try {
-            serverSocket = new ServerSocket(getPort());
-        } catch (IOException e) {
-            System.err.println("No se logro escuchar por el puerto"+getPort());
-        }
-        try {
-            System.out.println("Listo para escuchar en el puerto "+getPort()+"...");
-            clientSocket = serverSocket.accept();
-        } catch (IOException e) {
-            System.err.println("Accept failed. ");
-            System.exit(1);
-        }
-        answerRequest(clientSocket, serverSocket);
-    }
-
-    private static void answerRequest(Socket clientSocket, ServerSocket serverSocket) throws IOException {
-
-        while (!clientSocket.isClosed()) {
-            PrintWriter out = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8), true);
-            BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-            String inputLine, totalInput = "";
-            while ((inputLine = in.readLine()) != null) {
-                totalInput = totalInput + "\n" + inputLine;
-                System.out.println("Received: " + inputLine);
-                if (inputLine.contains("GET")) {
-                    String[] tempArray = inputLine.split(" ");
-                    String path = System.getProperty("user.dir") + "/src/main/Resources" + tempArray[1];
-                    BufferedReader br = null;
-
-                    try {
-                        br = new BufferedReader(new FileReader(path));
-
-                    } catch (Exception e) {
-                        out.println("HTTP/1.1 404 Not Found");
-                        out.println("Content-Type: text/html");
-                        System.out.println("Not found");
-                        e.printStackTrace();
-                    }
-                    if (path.contains(".html")) {
-                        out.write("HTTP/1.1 200 OK");
-                        out.println("Content-Type: text/html");
-                        out.println();
-                        String temp = br.readLine();
-                        while (temp != null) {
-                            out.write(temp);
-                            temp = br.readLine();
-                        }
-
-                        br.close();
-                    } else if (path.contains(".png")) {
-                        out.write("HTTP/1.1 200 OK");
-                        out.println("Content-Type: image/png");
-                        out.println();
-                        BufferedImage image = ImageIO
-                                .read(new File(System.getProperty("user.dir") + "/src/main/Resources" + tempArray[1]));
-                        ImageIO.write(image, "PNG", clientSocket.getOutputStream());
-
-                    }
-
-                    out.close();
-                }
-                if (!in.ready()) {
-                    break;
-                }
-            }
-            in.close();
-        }
-        clientSocket.close();
-        serverSocket.close();
-    }
-
-    static int getPort() {
+    public int getPort() {
         if (System.getenv("PORT") != null) {
             return Integer.parseInt(System.getenv("PORT"));
         }
         return 36000;
     }
-} 
 
+    private void socketPrepare(ServerSocket serverSocket, Socket clientSocket) throws IOException {
+        try {
+            serverSocket = new ServerSocket(getPort());
+        } catch (IOException e) {
+            System.err.println("No se logro escuchar por el puerto" + getPort());
+        }
+        try {
+            System.out.println("Listo para escuchar en el puerto " + getPort() + "...");
+            clientSocket = serverSocket.accept();
+        } catch (IOException e) {
+            System.err.println("Accept failed. ");
+            System.exit(1);
+        }
+        answerRequest(clientSocket);
+        
+        clientSocket.close();
+        serverSocket.close();
+    }
+
+    private void answerRequest(Socket clientSocket) throws IOException {
+        PrintWriter out = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8), true);
+        BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+        String inputLine, totalInput = "";
+        Request request = new Request();
+        while ((inputLine = in.readLine()) != null) {
+            request.setMethod(inputLine.split(" ")[0]);
+            request.setPath(inputLine.split(" ")[1]);
+            if (!in.ready() || inputLine.length() == 0) {
+                break;
+            }
+            break;
+        }
+        if (!request.getMethod().equals("")) {
+            createAnswer(request, new PrintStream(clientSocket.getOutputStream(), true));
+        }
+
+    }
+
+    public void createAnswer(Request request, PrintStream out) throws IOException {
+
+        if (request.getMethod().equals("GET")) {
+            File file = new File("src/main/Resources" + request.getPath());
+            if (file.exists()) {
+                String path = System.getProperty("user.dir") + "/src/main/Resources" + request.getPath();
+                BufferedReader br = null;
+                synchronized (out) {
+                    try {
+                        br = new BufferedReader(new FileReader(path));
+                    } catch (Exception e) {
+                        out.println("HTTP/1.1 404 Not Found");
+                        out.println("Content-Type: text/html");
+                        System.out.println("Not found");
+                    }
+                    if (path.contains(".html")) {
+                        out.print("HTTP/1.1 200 OK \r\n"+ "Content-Type: text/html" + "\r\n\r\n");
+                        String temp = br.readLine();
+                        while (temp != null) {
+                            out.print(temp);
+                            temp = br.readLine();
+                        }
+                        br.close();
+                        out.close();
+                    }
+                    if (path.contains(".png")) {
+                        out.print("HTTP/1.1 200 OK \r\n"+"Content-Type: image/png" + "\r\n\r\n");                        
+                        BufferedImage image = ImageIO
+                                .read(new File(System.getProperty("user.dir") + "/src/main/Resources" + request.getPath()));
+                        ImageIO.write(image, "PNG", out);
+                        out.close();
+                    }
+                    if (path.contains(".css")) {
+                        out.print("HTTP/1.1 200 OK \r\n"+"Content-Type: text/css"+ "\r\n\r\n");
+                        String temp = br.readLine();
+                        while (temp != null) {
+                            out.print(temp);
+                            temp = br.readLine();
+                        }
+                        out.close();
+                    }
+                    if (path.contains(".js")) {
+                        out.print("HTTP/1.1 200 OK \r\n"+"Content-Type: text/plain"+ "\r\n\r\n");
+                        String temp = br.readLine();
+                        while (temp != null) {
+                            out.print(temp);
+                            temp = br.readLine();
+
+                        }
+                        out.close();
+                    }
+                    out.close();
+                }
+            }else{
+                out.print("HTTP/1.0 404 Not Found \r\n" + "Content-type: text/html" + "\r\n\r\n"+ "404 File not found");
+                
+            }
+        }
+    }
+
+}

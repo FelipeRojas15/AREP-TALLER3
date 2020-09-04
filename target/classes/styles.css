@@ -1,6 +1,6 @@
 * {
     box-sizing: border-box;
-
+}
 body{
     margin: 0;
     font-family: sans-serif;
@@ -54,5 +54,5 @@ body{
     padding: 10px 20px;
     cursor: pointer;
     border: none;
-}
+
 }
